@@ -174,6 +174,12 @@ html
     h2 User Interface
     +checkbox('floatButton_enabled'): span Use float buttons (Especially useful for mobile)
 
+    div(style="margin: 12px 0")
+      label(for="floatButton_orientation") Button orientation:
+      select#floatButton_orientation(style="margin-left: 8px")
+        option(value="horizontal") Horizontal (bottom bar)
+        option(value="vertical") Vertical (right side panel)
+
     h2 Extra
     h4 Ecosia
     +checkbox('extra_ecosiaEliminateNotifications'): span Remove annoying notifications (cookies, privacy policy, whatever useless shits...etc).

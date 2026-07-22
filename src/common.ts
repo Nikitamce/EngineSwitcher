@@ -103,11 +103,15 @@ export interface CurrentState {
     nextEngine: SearchEngine,
 }
 
+export type float_orientation_t = 'horizontal' | 'vertical'
+
 export interface MyStorage {
     apiLevel: 1,
     enabledEngines: search_engine_t[],
     floatButton: {
         enabled: boolean,
+        /** Layout of the floating engine buttons. Default is horizontal (bottom bar). */
+        orientation: float_orientation_t,
     },
     extra: {
         /** Remove annoying and useless shitty notifications on top of page in Ecosia. */
@@ -467,6 +471,7 @@ class StorageManager {
             enabledEngines: enabledEngines,
             floatButton: {
                 enabled: true,
+                orientation: 'horizontal',
             },
             extra: {
                 ecosiaEliminateNotifications: false,
@@ -494,6 +499,10 @@ class StorageManager {
             ) {
                 storageManager.setData(defaultValue)
                 return defaultValue
+            }
+            // Ensure orientation exists for older saved configs
+            if (!d.floatButton.orientation) {
+                d.floatButton.orientation = 'horizontal'
             }
             d.enabledEngines = d.enabledEngines.filter(x => !DEPRECATED_SEARCH_ENGINES.includes(x))
             return Object.assign(defaultValue, d)
