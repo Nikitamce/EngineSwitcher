@@ -10,8 +10,12 @@ storageManager.getData().then((obj) => {
 })
 storageManager.onDataChanged((changes) => {
     console.log('[EngineSwitcher][background] storage changed!', changes)
-    STORAGE.enabledEngines = changes.enabledEngines.newValue
-    STORAGE.floatButton = changes.floatButton.newValue
+    if (changes.enabledEngines) {
+        STORAGE.enabledEngines = changes.enabledEngines.newValue
+    }
+    if (changes.floatButton) {
+        STORAGE.floatButton = changes.floatButton.newValue
+    }
 })
 
 
@@ -20,6 +24,9 @@ browser.runtime.onMessage.addListener((_ev: any) => {
     const reply = (r: TypedMsg) => Promise.resolve(r)
     switch (ev.type) {
         case 'getEnabledEnginesFromBg': return reply({ type: ev.type, data: getEnabledEngines()  })
+        case 'openOptionsPage':
+            browser.runtime.openOptionsPage()
+            return Promise.resolve()
     }
 })
 
