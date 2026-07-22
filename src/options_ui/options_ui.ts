@@ -12,7 +12,7 @@
  * remedy known factual inaccuracies. (Cited from MPL - 2.0, chapter 3.3)
  */
 
-import { ALL_ENGINES, fmtCollectDataAsPrivate, fmtEngineTooltipHtml, fmtResultSources, getEngineById, SearchEngine, search_engine_t, storageManager } from "../common"
+import { ALL_ENGINES, fmtCollectDataAsPrivate, fmtEngineTooltipHtml, fmtResultSources, getEngineById, SearchEngine, search_engine_t, storageManager, float_orientation_t } from "../common"
 import tippy from 'tippy.js'
 import 'tippy.js/dist/tippy.css'
 
@@ -256,6 +256,7 @@ oum.onchange = (newVal) => {
 async function loadFromLocalStorage() {
     const d = await storageManager.getData()
     setCheckboxValue('floatButton_enabled', d.floatButton.enabled)
+    setSelectValue('floatButton_orientation', d.floatButton.orientation || 'horizontal')
     setCheckboxValue('extra_ecosiaEliminateNotifications', d.extra.ecosiaEliminateNotifications)
     oum.setModel(d.enabledEngines)
 }
@@ -284,6 +285,7 @@ async function saveFormToLocalStorage() {
     storageManager.setDataPartially({
         floatButton: {
             enabled: getCheckboxValue('floatButton_enabled'),
+            orientation: getSelectValue('floatButton_orientation') as float_orientation_t,
         },
         extra: {
             ecosiaEliminateNotifications: getCheckboxValue('extra_ecosiaEliminateNotifications'),

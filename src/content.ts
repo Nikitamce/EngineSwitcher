@@ -1,5 +1,5 @@
 import tippy from "tippy.js";
-import { TypedMsg, isUrlSupported, getEngineObjOfUrl, search_engine_t, SearchEngine, parseUrlToGetQuery, storageManager, fmtEngineTooltipHtml } from "./common";
+import { TypedMsg, isUrlSupported, getEngineObjOfUrl, search_engine_t, SearchEngine, parseUrlToGetQuery, storageManager, fmtEngineTooltipHtml, float_orientation_t, MyStorage } from "./common";
 
 browser.runtime.onMessage.addListener((_ev: any) => {
     const ev = _ev as TypedMsg
@@ -36,7 +36,7 @@ function yahooOneSearchGetQueryString(engine: SearchEngine): string {
 
 storageManager.getData().then((cfg) => {
     if (cfg.floatButton.enabled) {
-        setupFloatBarAfterBodyReady()
+        setupFloatBarAfterBodyReady(cfg)
     }
     if (cfg.extra.ecosiaEliminateNotifications) {
         ecosiaRemoveStupidAnnoyingNotificationBanner()
@@ -137,34 +137,23 @@ function removeFloatBar() {
     document.querySelectorAll('.engineSwitcherElem').forEach(x => x.remove() )
     const el = document.querySelector('#engineSwitcherBar')
     if (el) { el.remove() }
+    // Clean body padding that we may have added
+    document.body.style.paddingBottom = ''
+    document.body.style.paddingRight = ''
 }
 
-// function removeLinkElementTarget() {
-//     const barEl = document.querySelector('#engineSwitcherBar')
-//     if (!barEl) { return }
-//     const linkElArr = barEl.querySelectorAll('a')
-//     linkElArr.forEach((el) => el.setAttribute('target', '_self'))
-// }
-
-// /** In Yahoo OneSearch, all <a> will be added with a target="_blank" via unknown mechanism, so remove it with a mutation. */
-// function watchAndRemoveLinkElementTarget() {
-//     const mutObserver = new MutationObserver((arr, observer) => {
-//         removeLinkElementTarget()
-//     })
-//     mutObserver.observe(document, {
-//         childList: true,
-//         attributes: true,
-//         subtree: true,  // false (or omit) to observe only changes to the parent node
-//     })
-// }
-// watchAndRemoveLinkElementTarget()
-
-async function setupFloatBar() {
+async function setupFloatBar(cfg: MyStorage) {
     removeFloatBar()
+    const orientation: float_orientation_t = cfg.floatButton.orientation || 'horizontal'
+    const isVertical = orientation === 'vertical'
+
     const styleEl = document.createElement('style')
     styleEl.className = "engineSwitcherElem"
     const ICON_SIZE = 40
-    styleEl.textContent = `
+    const BAR_WIDTH = ICON_SIZE + 16 // padding + icon
+
+    // Shared CSS variables + dark mode
+    const commonCss = `
     #engineSwitcherBar {
         --bg: #ffffff;
         --bgActive: #eeeeee;
@@ -172,19 +161,11 @@ async function setupFloatBar() {
         --activeIndicator: #5599ff;
         --fg: #333333;
         --bd: #cccccc;
-        display: flex;
         position: fixed;
         z-index: 99999999999;
-        bottom: 0;
-        left: 0;
         background: var(--bg);
         border: 1px solid var(--bd);
-    }
-    #engineSwitcherBar .scrollArea {
-        max-width: calc(100vw - 48px); /* exclude the width of .closeBtn */
-        overflow-x: scroll;
         display: flex;
-        width: 100%;
     }
     #engineSwitcherBar a {
         color: var(--fg);
@@ -193,29 +174,26 @@ async function setupFloatBar() {
         justify-content: center;
         cursor: pointer;
         padding: 2px 10px;
+        text-decoration: none;
     }
     #engineSwitcherBar a.closeBtn {
         width: 48px;
         padding: 0;
+        flex-shrink: 0;
     }
     #engineSwitcherBar a:hover {
         background: var(--bgActive);
     }
-    #engineSwitcherBar .active {
-        border-bottom: 3px solid var(--activeIndicator);
-    }
     #engineSwitcherBar a .iconImg {
         width: ${ICON_SIZE}px;
         min-width: ${ICON_SIZE}px;
+        height: ${ICON_SIZE}px;
+        object-fit: contain;
     }
     #engineSwitcherBar a.active {
         background: var(--bgActive);
         filter: brightness(0.9) saturate(0.6);
     }
-    body {
-        padding-bottom: ${ICON_SIZE}px;
-    }
-
     @media(prefers-color-scheme: dark) {
         #engineSwitcherBar {
             --bg: #000;
@@ -232,9 +210,91 @@ async function setupFloatBar() {
         }
     }
     `
+
+    let layoutCss = ''
+    if (isVertical) {
+        // Right-side vertical panel – does not eat page text, has vertical scroll
+        layoutCss = `
+        #engineSwitcherBar {
+            flex-direction: column;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: auto;
+            width: ${BAR_WIDTH}px;
+            max-height: 100vh;
+            height: 100vh;
+            border-left: 1px solid var(--bd);
+            border-right: none;
+            border-top: none;
+            border-bottom: none;
+        }
+        #engineSwitcherBar .scrollArea {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-height: calc(100vh - 48px);
+        }
+        #engineSwitcherBar a {
+            padding: 8px 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #engineSwitcherBar a.closeBtn {
+            width: 100%;
+            height: 48px;
+            border-bottom: 1px solid var(--bd);
+        }
+        #engineSwitcherBar .active {
+            border-left: 3px solid var(--activeIndicator);
+            border-bottom: none;
+        }
+        body {
+            padding-right: ${BAR_WIDTH}px !important;
+        }
+        `
+    } else {
+        // Classic horizontal bottom bar
+        layoutCss = `
+        #engineSwitcherBar {
+            flex-direction: row;
+            bottom: 0;
+            left: 0;
+            right: auto;
+            top: auto;
+            width: auto;
+            max-width: 100vw;
+        }
+        #engineSwitcherBar .scrollArea {
+            max-width: calc(100vw - 48px);
+            overflow-x: auto;
+            overflow-y: hidden;
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+        }
+        #engineSwitcherBar a.closeBtn {
+            width: 48px;
+            height: auto;
+        }
+        #engineSwitcherBar .active {
+            border-bottom: 3px solid var(--activeIndicator);
+            border-left: none;
+        }
+        body {
+            padding-bottom: ${ICON_SIZE + 8}px !important;
+        }
+        `
+    }
+
+    styleEl.textContent = commonCss + layoutCss
+
     const floatEl = document.createElement('div')
     floatEl.id = 'engineSwitcherBar'
-    floatEl.className = "engineSwitcherElem"
+    floatEl.className = "engineSwitcherElem" + (isVertical ? ' vertical' : ' horizontal')
     const enabledEngines = await getEnabledEngines()
     const query = smartGetQueryString()
     const closeIconSvg = `
@@ -244,6 +304,7 @@ async function setupFloatBar() {
     const closeBtn = document.createElement('a')
     closeBtn.innerHTML = closeIconSvg
     closeBtn.className = 'closeBtn'
+    closeBtn.title = 'Close Engine Switcher'
     closeBtn.onclick = function () { removeFloatBar() }
 
     floatEl.innerHTML = `<div class="scrollArea"></div>`
@@ -251,15 +312,16 @@ async function setupFloatBar() {
     for (const eng of enabledEngines) {
         scrollAreaEl.appendChild(createEngineLinkElem(eng, query))
     }
+    // Close button: top for vertical, left for horizontal
     floatEl.prepend(closeBtn)
     document.body.appendChild(floatEl)
     document.head.appendChild(styleEl)
 }
 
-function setupFloatBarAfterBodyReady() {
+function setupFloatBarAfterBodyReady(cfg: MyStorage) {
     // FIXME: A debounce as workaround for incomprehensible behavior of DOM of Brave...
     const debounceSetupFloatBar = makeDebounceObject(() => {
-        setupFloatBar()
+        setupFloatBar(cfg)
     }, 1000)
     debounceSetupFloatBar.start()
     const mutObserver = new MutationObserver((arr, observer) => {
@@ -270,7 +332,7 @@ function setupFloatBarAfterBodyReady() {
             mut.target.nodeName === 'BODY'
         )
         if (body) {
-            setupFloatBar()
+            setupFloatBar(cfg)
             debounceSetupFloatBar.cancel()
             mutObserver.disconnect()
             return  // Remember to do this...
