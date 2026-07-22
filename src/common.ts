@@ -104,6 +104,7 @@ export interface CurrentState {
 }
 
 export type float_orientation_t = 'horizontal' | 'vertical'
+export type float_position_t = 'left' | 'right'
 
 export interface MyStorage {
     apiLevel: 1,
@@ -112,6 +113,8 @@ export interface MyStorage {
         enabled: boolean,
         /** Layout of the floating engine buttons. Default is horizontal (bottom bar). */
         orientation: float_orientation_t,
+        /** Side of the screen. For horizontal = bottom-left/right, for vertical = left/right edge. */
+        position: float_position_t,
     },
     extra: {
         /** Remove annoying and useless shitty notifications on top of page in Ecosia. */
@@ -413,7 +416,8 @@ export function objectAssign<N, T extends N>(target: T, newVal: N): T {
 
 export type TypedMsg =
     { type: 'getQueryStringFromPage', data: string } |
-    { type: 'getEnabledEnginesFromBg', data: SearchEngine[] }
+    { type: 'getEnabledEnginesFromBg', data: SearchEngine[] } |
+    { type: 'openOptionsPage' }
 // TODO: This is actually unnecessary... browser.storage can be access in content scripts
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage
 
@@ -472,6 +476,7 @@ class StorageManager {
             floatButton: {
                 enabled: true,
                 orientation: 'horizontal',
+                position: 'left',
             },
             extra: {
                 ecosiaEliminateNotifications: false,
@@ -500,9 +505,13 @@ class StorageManager {
                 storageManager.setData(defaultValue)
                 return defaultValue
             }
-            // Ensure orientation exists for older saved configs
+            // Ensure new fields exist for older saved configs
             if (!d.floatButton.orientation) {
                 d.floatButton.orientation = 'horizontal'
+            }
+            if (!d.floatButton.position) {
+                // previous vertical was always on the right
+                d.floatButton.position = d.floatButton.orientation === 'vertical' ? 'right' : 'left'
             }
             d.enabledEngines = d.enabledEngines.filter(x => !DEPRECATED_SEARCH_ENGINES.includes(x))
             return Object.assign(defaultValue, d)

@@ -1,5 +1,5 @@
 import tippy from "tippy.js";
-import { TypedMsg, isUrlSupported, getEngineObjOfUrl, search_engine_t, SearchEngine, parseUrlToGetQuery, storageManager, fmtEngineTooltipHtml, float_orientation_t, MyStorage } from "./common";
+import { TypedMsg, isUrlSupported, getEngineObjOfUrl, search_engine_t, SearchEngine, parseUrlToGetQuery, storageManager, fmtEngineTooltipHtml, float_orientation_t, float_position_t, MyStorage } from "./common";
 
 browser.runtime.onMessage.addListener((_ev: any) => {
     const ev = _ev as TypedMsg
@@ -82,26 +82,6 @@ function ecosiaRemoveStupidAnnoyingNotificationBanner() {
         childList: true,
         subtree: true,  // false (or omit) to observe only changes to the parent node
     })
-
-
-    /*
-    const deleteElement = makeDebounceFn(() => {
-        document.querySelectorAll('.main-header .banner').forEach(el => { el.remove() })
-        document.querySelectorAll('.js-notifications-banner').forEach(x => x.remove())
-    }, 50)
-    const mutObserver = new MutationObserver((arr, observer) => {
-        for (let mut of arr) {
-            if (mut.type === 'childList') {
-                deleteElement()
-            }
-        }
-    })
-
-    mutObserver.observe(document, {
-        childList: true,
-        subtree: true,  // false (or omit) to observe only changes to the parent node
-    })
-    */
 }
 
 function createEngineLinkElem(engine: SearchEngine, query: string): HTMLAnchorElement {
@@ -140,17 +120,21 @@ function removeFloatBar() {
     // Clean body padding that we may have added
     document.body.style.paddingBottom = ''
     document.body.style.paddingRight = ''
+    document.body.style.paddingLeft = ''
 }
 
 async function setupFloatBar(cfg: MyStorage) {
     removeFloatBar()
     const orientation: float_orientation_t = cfg.floatButton.orientation || 'horizontal'
+    const position: float_position_t = cfg.floatButton.position || (orientation === 'vertical' ? 'right' : 'left')
     const isVertical = orientation === 'vertical'
+    const isRight = position === 'right'
 
     const styleEl = document.createElement('style')
     styleEl.className = "engineSwitcherElem"
     const ICON_SIZE = 40
     const BAR_WIDTH = ICON_SIZE + 16 // padding + icon
+    const ACTION_BTN_SIZE = 32 // narrow close + settings buttons
 
     // Shared CSS variables + dark mode
     const commonCss = `
@@ -175,11 +159,19 @@ async function setupFloatBar(cfg: MyStorage) {
         cursor: pointer;
         padding: 2px 10px;
         text-decoration: none;
-    }
-    #engineSwitcherBar a.closeBtn {
-        width: 48px;
-        padding: 0;
         flex-shrink: 0;
+    }
+    #engineSwitcherBar a.closeBtn,
+    #engineSwitcherBar a.settingsBtn {
+        width: ${ACTION_BTN_SIZE}px;
+        min-width: ${ACTION_BTN_SIZE}px;
+        padding: 0;
+        opacity: 0.75;
+    }
+    #engineSwitcherBar a.closeBtn:hover,
+    #engineSwitcherBar a.settingsBtn:hover {
+        opacity: 1;
+        background: var(--bgActive);
     }
     #engineSwitcherBar a:hover {
         background: var(--bgActive);
@@ -205,7 +197,8 @@ async function setupFloatBar(cfg: MyStorage) {
         }
         #engineSwitcherBar img[src$='wikipedia.svg'],
         #engineSwitcherBar img[src$='yahoo-onesearch.png'],
-        #engineSwitcherBar a.closeBtn svg {
+        #engineSwitcherBar a.closeBtn svg,
+        #engineSwitcherBar a.settingsBtn svg {
             filter: invert(100%);
         }
     }
@@ -213,19 +206,21 @@ async function setupFloatBar(cfg: MyStorage) {
 
     let layoutCss = ''
     if (isVertical) {
-        // Right-side vertical panel – does not eat page text, has vertical scroll
+        const side = isRight ? 'right' : 'left'
+        const opposite = isRight ? 'left' : 'right'
+        const activeBorder = isRight ? 'border-left' : 'border-right'
         layoutCss = `
         #engineSwitcherBar {
             flex-direction: column;
             top: 0;
-            right: 0;
+            ${side}: 0;
             bottom: 0;
-            left: auto;
+            ${opposite}: auto;
             width: ${BAR_WIDTH}px;
             max-height: 100vh;
             height: 100vh;
-            border-left: 1px solid var(--bd);
-            border-right: none;
+            border-${opposite}: 1px solid var(--bd);
+            border-${side}: none;
             border-top: none;
             border-bottom: none;
         }
@@ -236,53 +231,64 @@ async function setupFloatBar(cfg: MyStorage) {
             display: flex;
             flex-direction: column;
             width: 100%;
-            max-height: calc(100vh - 48px);
+            max-height: calc(100vh - ${ACTION_BTN_SIZE * 2}px);
         }
         #engineSwitcherBar a {
             padding: 8px 4px;
             width: 100%;
             box-sizing: border-box;
         }
-        #engineSwitcherBar a.closeBtn {
+        #engineSwitcherBar a.closeBtn,
+        #engineSwitcherBar a.settingsBtn {
             width: 100%;
-            height: 48px;
+            height: ${ACTION_BTN_SIZE}px;
+            min-height: ${ACTION_BTN_SIZE}px;
+        }
+        #engineSwitcherBar a.closeBtn {
             border-bottom: 1px solid var(--bd);
         }
+        #engineSwitcherBar a.settingsBtn {
+            border-top: 1px solid var(--bd);
+        }
         #engineSwitcherBar .active {
-            border-left: 3px solid var(--activeIndicator);
+            ${activeBorder}: 3px solid var(--activeIndicator);
             border-bottom: none;
         }
         body {
-            padding-right: ${BAR_WIDTH}px !important;
+            padding-${side}: ${BAR_WIDTH}px !important;
         }
         `
     } else {
-        // Classic horizontal bottom bar
+        // Horizontal bottom bar
+        const side = isRight ? 'right' : 'left'
+        const opposite = isRight ? 'left' : 'right'
         layoutCss = `
         #engineSwitcherBar {
             flex-direction: row;
             bottom: 0;
-            left: 0;
-            right: auto;
+            ${side}: 0;
+            ${opposite}: auto;
             top: auto;
             width: auto;
             max-width: 100vw;
         }
         #engineSwitcherBar .scrollArea {
-            max-width: calc(100vw - 48px);
+            max-width: calc(100vw - ${ACTION_BTN_SIZE * 2}px);
             overflow-x: auto;
             overflow-y: hidden;
             display: flex;
             flex-direction: row;
             width: 100%;
         }
-        #engineSwitcherBar a.closeBtn {
-            width: 48px;
+        #engineSwitcherBar a.closeBtn,
+        #engineSwitcherBar a.settingsBtn {
+            width: ${ACTION_BTN_SIZE}px;
             height: auto;
         }
         #engineSwitcherBar .active {
             border-bottom: 3px solid var(--activeIndicator);
             border-left: none;
+            border-right: none;
         }
         body {
             padding-bottom: ${ICON_SIZE + 8}px !important;
@@ -294,11 +300,14 @@ async function setupFloatBar(cfg: MyStorage) {
 
     const floatEl = document.createElement('div')
     floatEl.id = 'engineSwitcherBar'
-    floatEl.className = "engineSwitcherElem" + (isVertical ? ' vertical' : ' horizontal')
+    floatEl.className = `engineSwitcherElem ${isVertical ? 'vertical' : 'horizontal'} pos-${position}`
+
     const enabledEngines = await getEnabledEngines()
     const query = smartGetQueryString()
+
+    // Close icon (X)
     const closeIconSvg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="12" viewBox="0 0 12 12">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 12 12">
         <path fill="currentColor" fill-rule="nonzero" d="M7.426 6l4.285 4.284a1 1 0 0 1 0 1.415l-.012.012a1 1 0 0 1-1.415 0L6 7.426l-4.284 4.285a1 1 0 0 1-1.415 0l-.012-.012a1 1 0 0 1 0-1.415L4.574 6 .289 1.716A1 1 0 0 1 .29.3L.301.29a1 1 0 0 1 1.415 0L6 4.574 10.284.289a1 1 0 0 1 1.415 0l.012.012a1 1 0 0 1 0 1.415L7.426 6z"></path>
     </svg>`
     const closeBtn = document.createElement('a')
@@ -307,13 +316,32 @@ async function setupFloatBar(cfg: MyStorage) {
     closeBtn.title = 'Close Engine Switcher'
     closeBtn.onclick = function () { removeFloatBar() }
 
+    // Settings gear (narrow)
+    const settingsIconSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>`
+    const settingsBtn = document.createElement('a')
+    settingsBtn.innerHTML = settingsIconSvg
+    settingsBtn.className = 'settingsBtn'
+    settingsBtn.title = 'Open Engine Switcher settings'
+    settingsBtn.onclick = function (e) {
+        e.preventDefault()
+        const msg: TypedMsg = { type: 'openOptionsPage' }
+        browser.runtime.sendMessage(msg)
+    }
+
     floatEl.innerHTML = `<div class="scrollArea"></div>`
     const scrollAreaEl = floatEl.querySelector('.scrollArea')!
     for (const eng of enabledEngines) {
         scrollAreaEl.appendChild(createEngineLinkElem(eng, query))
     }
-    // Close button: top for vertical, left for horizontal
+
+    // Order: close | engines | settings
     floatEl.prepend(closeBtn)
+    floatEl.appendChild(settingsBtn)
+
     document.body.appendChild(floatEl)
     document.head.appendChild(styleEl)
 }
@@ -325,7 +353,6 @@ function setupFloatBarAfterBodyReady(cfg: MyStorage) {
     }, 1000)
     debounceSetupFloatBar.start()
     const mutObserver = new MutationObserver((arr, observer) => {
-        // console.log('MUT===>', arr.map(m => m.target.nodeName))
         const body = arr.find(mut =>
             mut.type === 'childList' &&
             mut.target.nodeType === Node.ELEMENT_NODE &&
@@ -335,12 +362,12 @@ function setupFloatBarAfterBodyReady(cfg: MyStorage) {
             setupFloatBar(cfg)
             debounceSetupFloatBar.cancel()
             mutObserver.disconnect()
-            return  // Remember to do this...
+            return
         }
     })
 
     mutObserver.observe(document, {
         childList: true,
-        subtree: true,  // false (or omit) to observe only changes to the parent node
+        subtree: true,
     })
 }

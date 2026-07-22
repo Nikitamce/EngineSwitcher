@@ -140,6 +140,15 @@ html
         height: 1rem;
         margin-right: 0.5rem;
     }
+    .ui-row {
+      margin: 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ui-row label {
+      min-width: 140px;
+    }
   nav.navbar
     a(href='https://addons.mozilla.org/en-US/firefox/addon/engine-switcher/' target='_blank')
       img.d-inline-block.align-top(src='../img/icon.svg', width='30', height='30', alt='')
@@ -174,11 +183,22 @@ html
     h2 User Interface
     +checkbox('floatButton_enabled'): span Use float buttons (Especially useful for mobile)
 
-    div(style="margin: 12px 0")
-      label(for="floatButton_orientation") Button orientation:
-      select#floatButton_orientation(style="margin-left: 8px")
+    .ui-row
+      label(for="floatButton_orientation") Orientation:
+      select#floatButton_orientation
         option(value="horizontal") Horizontal (bottom bar)
-        option(value="vertical") Vertical (right side panel)
+        option(value="vertical") Vertical (side panel)
+
+    .ui-row
+      label(for="floatButton_position") Position:
+      select#floatButton_position
+        option(value="left") Left
+        option(value="right") Right
+
+    p(style="opacity:0.7; font-size: 13px; margin-top: 4px")
+      | Horizontal + Left/Right = bottom-left / bottom-right corner.
+      br
+      | Vertical + Left/Right = left / right edge of the screen.
 
     h2 Extra
     h4 Ecosia
